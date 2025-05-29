@@ -6,6 +6,7 @@ package latrespbo.view;
 
 import latrespbo.controller.TransaksiController;
 import latrespbo.model.TransaksiModel;
+import latrespbo.model.TransaksiModel.Transaction; 
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -25,13 +26,14 @@ public class TransaksiView extends JFrame{
     private JTextField fieldHargaSatuan;
     private JTextField fieldJumlahBeli;
 
-    private JButton addButton, deleteButton;
+    private JButton addButton, deleteButton, editButton, updateButton, clearButton;
 
     private TransaksiController controller;
+    private int currentEditingId = -1;
 
     public TransaksiView() {
         setTitle("Aplikasi Transaksi Penjualan Obat");
-        setSize(700, 500);
+        setSize(700, 600);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
@@ -56,12 +58,27 @@ public class TransaksiView extends JFrame{
         fieldJumlahBeli = new JTextField();
         inputPanel.add(fieldJumlahBeli);
 
+        JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
+
         addButton = new JButton("Tambah");
         deleteButton = new JButton("Hapus");
-        inputPanel.add(addButton);
-        inputPanel.add(deleteButton);
+        editButton = new JButton("Edit");
+        updateButton = new JButton("Update");
+        clearButton = new JButton("Batal/Clear");
+        
+        updateButton.setEnabled(false);
+        
+        buttonsPanel.add(addButton);
+        buttonsPanel.add(deleteButton);
+        buttonsPanel.add(editButton);
+        buttonsPanel.add(updateButton);
+        buttonsPanel.add(clearButton);
 
-        add(inputPanel, BorderLayout.NORTH);
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.add(inputPanel, BorderLayout.NORTH);
+        topPanel.add(buttonsPanel, BorderLayout.CENTER);
+
+        add(topPanel, BorderLayout.NORTH);
 
         // Table setup
         tableModel = new DefaultTableModel(new Object[]{
@@ -106,6 +123,75 @@ public class TransaksiView extends JFrame{
                 showMessage("Pilih transaksi yang ingin dihapus.");
             }
         });
+
+        editButton.addActionListener((ActionEvent e) -> {
+            int selectedRow = table.getSelectedRow();
+            if (selectedRow >= 0) {
+                currentEditingId = (int) tableModel.getValueAt(selectedRow, 0);
+                fieldNamaPelanggan.setText(tableModel.getValueAt(selectedRow, 1).toString());
+                fieldNamaObat.setText(tableModel.getValueAt(selectedRow, 2).toString());
+                fieldHargaSatuan.setText(tableModel.getValueAt(selectedRow, 3).toString());
+                fieldJumlahBeli.setText(tableModel.getValueAt(selectedRow, 4).toString());
+
+                addButton.setEnabled(false);
+                editButton.setEnabled(false);
+                deleteButton.setEnabled(false);
+                updateButton.setEnabled(true);
+                // clearButton.setEnabled(true); // Tombol clear bisa diaktifkan saat mode edit
+            } else {
+                showMessage("Pilih transaksi yang ingin diedit dari tabel.");
+            }
+        });
+
+        updateButton.addActionListener((ActionEvent e) -> {
+            if (currentEditingId == -1) {
+                showMessage("Tidak ada transaksi yang dipilih untuk diupdate. Klik Edit dulu.");
+                return;
+            }
+            try {
+                String namaPelanggan = fieldNamaPelanggan.getText().trim();
+                String namaObat = fieldNamaObat.getText().trim();
+                int hargaSatuan = Integer.parseInt(fieldHargaSatuan.getText().trim());
+                int jumlahBeli = Integer.parseInt(fieldJumlahBeli.getText().trim());
+
+                if (namaPelanggan.isEmpty() || namaObat.isEmpty()) {
+                    showMessage("Nama pelanggan dan nama obat tidak boleh kosong.");
+                    return;
+                }
+                 if (hargaSatuan <= 0 || jumlahBeli <= 0) {
+                    showMessage("Harga satuan dan jumlah beli harus lebih dari 0.");
+                    return;
+                }
+
+                controller.updateTransaction(currentEditingId, namaPelanggan, namaObat, hargaSatuan, jumlahBeli);
+                resetFormState();
+
+            } catch (NumberFormatException ex) {
+                showMessage("Harga dan jumlah beli harus berupa angka.");
+            }
+        });
+
+         clearButton.addActionListener((ActionEvent e) -> {
+            resetFormState();
+        });
+
+    }
+
+    private void resetFormState() {
+        fieldNamaPelanggan.setText("");
+        fieldNamaObat.setText("");
+        fieldHargaSatuan.setText("");
+        fieldJumlahBeli.setText("");
+
+        currentEditingId = -1; // Reset ID yang diedit
+
+        addButton.setEnabled(true);
+        editButton.setEnabled(true);
+        deleteButton.setEnabled(true);
+        updateButton.setEnabled(false); // Nonaktifkan tombol update
+        // clearButton.setEnabled(false); // Jika clear hanya untuk mode edit
+
+        table.clearSelection(); // Hapus seleksi pada tabel
     }
 
     public void setController(TransaksiController controller) {
